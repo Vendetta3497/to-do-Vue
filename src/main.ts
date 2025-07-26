@@ -1,6 +1,9 @@
 import { createApp } from 'vue';
-import './style.scss';
+import '@/assets/styles/main.scss';
 import App from './App.vue';
-import './tailwind.scss';
 
-createApp(App).mount('#app');
+import components from '@/components/shared';
+
+const app = createApp(App);
+components.forEach(component => app.component(component.name!, component));
+app.mount('#app');

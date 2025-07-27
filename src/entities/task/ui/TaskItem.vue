@@ -18,37 +18,24 @@
          />
 
          <div class="flex flex-wrap gap-2 items-center">
-            <div class="flex flex-wrap gap-2 items-center">
-               <div v-for="(tag, index) in localTask.tags" :key="index">
-                  <div v-if="editingTagIndex === index">
-                     <input
-                        v-model="editingTag"
-                        @keydown.enter.prevent="saveTagEdit(index)"
-                        @blur="saveTagEdit(index)"
-                        class="bg-transparent border-b border-white outline-none w-20 text-white"
-                        :id="`edit-tag-${index}`"
-                        :name="`edit-tag-${index}`"
-                        autofocus
-                     />
-                  </div>
-                  <div v-else>
-                     <BaseTag
-                        :label="'#' + tag"
-                        color="blue"
-                        removable
-                        @click="editTag(index)"
-                        @remove="removeTag(index)"
-                     />
-                  </div>
-               </div>
-            </div>
+            <BaseTag
+               v-for="(tag, index) in localTask.tags"
+               :key="`${localTask.id}-${index}`"
+               :id="`edit-tag-${localTask.id}-${index}`"
+               :label="'#' + tag"
+               color="green"
+               removable
+               editable
+               @remove="removeTag(index)"
+               @update:label="(val: string) => updateTag(index, val.replace(/^#/, ''))"
+            />
             <input
                v-model="tagInput"
                @keydown.enter.prevent="addTag"
                class="bg-gray-800 text-white text-sm px-2 py-1 rounded w-20 placeholder-white/60"
+               :id="`new-tag-${localTask.id}`"
+               :name="`new-tag-${localTask.id}`"
                placeholder="+ тег"
-               id="new-tag"
-               name="new-tag"
             />
          </div>
       </div>
@@ -96,6 +83,7 @@
                :key="subtask.id"
                :task="subtask"
                :is-subtask="true"
+               :status-options="statusOptions"
                @update:task="onSubtaskUpdate(subtask.id, $event)"
                @delete="onSubtaskDelete(subtask.id)"
             />
@@ -105,128 +93,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import type { Task } from '../types/task';
-import BaseInput from '@/shared/BaseInput.vue';
-import BaseButton from '@/shared/BaseButton.vue';
-import BaseSelect from '@/shared/BaseSelect.vue';
-import BaseTag from '@/shared/BaseTag.vue';
-import TaskItem from './TaskItem.vue';
+import { useTaskItem } from '@/entities/task/composables/useTaskItem';
+import type { TaskItemProps, TaskItemEmit } from '../types/task';
 
-const props = defineProps<{
-   task: Task;
-   isSubtask?: boolean;
-}>();
+const props = defineProps<TaskItemProps>();
+const emit = defineEmits<TaskItemEmit>();
 
-const emit = defineEmits<{
-   (e: 'delete'): void;
-   (e: 'update:task', value: Task): void;
-}>();
-
-const localTask = ref({ ...props.task });
-const editingTagIndex = ref<number | null>(null);
-const editingTag = ref('');
-const tagInput = ref('');
-const isSubtasksVisible = ref(false);
-const isAddingSubtask = ref(false);
-const newSubtaskTitle = ref('');
-
-const statusOptions = [
-   { value: 'todo', label: 'To Do' },
-   { value: 'in-progress', label: 'In Progress' },
-   { value: 'done', label: 'Done' },
-];
-
-watch(
-   () => props.task,
-   newTask => {
-      localTask.value = { ...newTask };
-   },
-   { deep: true, immediate: true }
-);
-
-function emitUpdate() {
-   emit('update:task', { ...localTask.value });
-}
-
-function updateStatus(value: string) {
-   localTask.value.status = value as Task['status'];
-   emitUpdate();
-}
-
-function editTag(index: number) {
-   editingTagIndex.value = index;
-   editingTag.value = localTask.value.tags[index];
-}
-
-function saveTagEdit(index: number) {
-   const newTag = editingTag.value.trim();
-   if (newTag && !localTask.value.tags.includes(newTag)) {
-      localTask.value.tags[index] = newTag;
-      emitUpdate();
-   }
-   editingTagIndex.value = null;
-   editingTag.value = '';
-}
-
-function addTag() {
-   const tag = tagInput.value.trim();
-   if (tag && !localTask.value.tags.includes(tag)) {
-      localTask.value.tags.push(tag);
-      emitUpdate();
-   }
-   tagInput.value = '';
-}
-
-function removeTag(index: number) {
-   localTask.value.tags.splice(index, 1);
-   emitUpdate();
-}
-
-function onDelete() {
-   emit('delete');
-}
-
-function onSubtaskUpdate(id: string, updated: Task) {
-   const index = localTask.value.subtasks.findIndex(t => t.id === id);
-   if (index !== -1) {
-      localTask.value.subtasks[index] = updated;
-      emitUpdate();
-   }
-}
-
-function onSubtaskDelete(id: string) {
-   localTask.value.subtasks = localTask.value.subtasks.filter(t => t.id !== id);
-   emitUpdate();
-}
-
-function addSubtask() {
-   const title = newSubtaskTitle.value.trim();
-   if (!title) return;
-
-   const newSubtask: Task = {
-      id: crypto.randomUUID(),
-      title,
-      status: 'todo',
-      tags: [],
-      subtasks: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-   };
-
-   localTask.value.subtasks.push(newSubtask);
-   emitUpdate();
-   newSubtaskTitle.value = '';
-   isAddingSubtask.value = false;
-}
-
-function toggleSubtasks() {
-   isSubtasksVisible.value = !isSubtasksVisible.value;
-}
-
-function toggleAddSubtask() {
-   isAddingSubtask.value = !isAddingSubtask.value;
-}
+const {
+   localTask,
+   tagInput,
+   isSubtasksVisible,
+   isAddingSubtask,
+   newSubtaskTitle,
+   updateStatus,
+   addTag,
+   removeTag,
+   onDelete,
+   onSubtaskUpdate,
+   onSubtaskDelete,
+   addSubtask,
+   toggleSubtasks,
+   toggleAddSubtask,
+   updateTag,
+} = useTaskItem(props, emit);
 </script>
 
 <style scoped>

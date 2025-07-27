@@ -1,6 +1,7 @@
 <template>
    <div class="w-full">
       <input
+         v-bind="$attrs"
          :type="type"
          :value="modelValue"
          :placeholder="placeholder"

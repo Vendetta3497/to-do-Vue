@@ -3,8 +3,9 @@
       <select
          :id="id"
          :name="name"
+         :multiple="multiple"
          :value="modelValue"
-         @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
+         @change="onChange"
          :disabled="disabled"
          :class="[
             'w-full px-3 py-2 rounded text-sm outline-none transition bg-gray-800 text-white cursor-pointer',
@@ -14,11 +15,15 @@
             disabled && 'opacity-50 cursor-not-allowed',
          ]"
       >
-         <option v-if="placeholder && !modelValue" value="" disabled hidden>
+         <option v-if="placeholder && !multiple" value="" disabled hidden>
             {{ placeholder }}
          </option>
-
-         <option v-for="option in options" :key="option.value" :value="option.value">
+         <option
+            v-for="option in options"
+            :key="option.value"
+            :value="option.value"
+            :selected="multiple ? modelValue.includes(option.value) : modelValue === option.value"
+         >
             {{ option.label }}
          </option>
       </select>
@@ -28,19 +33,33 @@
 </template>
 
 <script setup lang="ts">
+import { defineProps, defineEmits } from 'vue';
+
 defineOptions({ name: 'BaseSelect' });
 
-defineProps<{
-   modelValue: string;
+const props = defineProps<{
+   modelValue: string | string[];
    options: Array<{ value: string; label: string }>;
    placeholder?: string;
    disabled?: boolean;
    error?: string;
    id?: string;
    name?: string;
+   multiple?: boolean;
 }>();
 
-defineEmits<{
-   (e: 'update:modelValue', value: string): void;
+const emit = defineEmits<{
+   (e: 'update:modelValue', value: string | string[]): void;
 }>();
+
+function onChange(event: Event) {
+   const target = event.target as HTMLSelectElement;
+
+   if (props.multiple) {
+      const selected = Array.from(target.selectedOptions).map(o => o.value);
+      emit('update:modelValue', selected);
+   } else {
+      emit('update:modelValue', target.value);
+   }
+}
 </script>
